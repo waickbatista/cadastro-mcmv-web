@@ -1,0 +1,20 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+
+# Arquivos de banco
+cadastro.db
+*.sqlite3
+
+# Excel gerado
+*.xlsx
+
+# PDFs gerados
+*.pdf
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
