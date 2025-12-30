@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
-import sqlite3, os
+import sqlite3, os, re
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -15,7 +15,6 @@ def cpf_valido(cpf):
         return False
     if cpf == cpf[0] * 11:
         return False
-
     for i in range(9, 11):
         soma = sum(int(cpf[num]) * ((i + 1) - num) for num in range(i))
         dig = (soma * 10 % 11) % 10
@@ -133,19 +132,25 @@ def index():
 def salvar():
     d = request.form.to_dict()
 
-    if not cpf_valido(d["cpf"]):
+    # Validações
+    if not re.fullmatch(r"[A-Za-zÀ-ÿ ]+", d.get("nome","")):
+        return jsonify({"erro": "Nome inválido"}), 400
+    if not cpf_valido(d.get("cpf","")):
         return jsonify({"erro": "CPF inválido"}), 400
+    if not d.get("telefone","").isdigit():
+        return jsonify({"erro": "Telefone inválido"}), 400
+    if not d.get("renda","").replace(".","").isdigit():
+        return jsonify({"erro": "Renda inválida"}), 400
 
     with conectar() as con:
         con.execute("""
         INSERT OR REPLACE INTO beneficiarios VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
-            d["cpf"], d["nome"], d["profissao"], d["atividade"], d["renda"],
+            d["cpf"], d["nome"], d["profissao"], d["atividade"], float(d["renda"]),
             d["estado_civil"], d["beneficio"], d["endereco"], d["telefone"],
-            d["pcd"], d["idosos"], d["criancas"], d["moradores"],
-            d.get("conjuge_nome"), d.get("conjuge_cpf"),
-            d.get("conjuge_profissao"), d.get("conjuge_atividade"),
-            d.get("conjuge_renda"),
+            int(d["pcd"] or 0), int(d["idosos"] or 0), int(d["criancas"] or 0), int(d["moradores"] or 0),
+            d.get("conjuge_nome"), d.get("conjuge_cpf"), d.get("conjuge_profissao"),
+            d.get("conjuge_atividade"), float(d.get("conjuge_renda") or 0),
             datetime.now().strftime("%d/%m/%Y")
         ))
 
@@ -164,4 +169,6 @@ def consultar(cpf):
         return jsonify(dict(zip(cols, r)))
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
